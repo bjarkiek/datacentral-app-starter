@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>DataCentral Hello World App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f7fb; margin: 0; color: #172033; }
+    main { max-width: 860px; margin: 48px auto; background: white; padding: 32px; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,.08); }
+    code, pre { background: #111827; color: #e5e7eb; border-radius: 8px; }
+    pre { padding: 16px; overflow: auto; }
+    .ok { color: #067647; font-weight: bold; }
+    .bad { color: #b42318; font-weight: bold; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>DataCentral Hello World App</h1>
+  <p>This is a single-file app that reads the DataCentral launch payload.</p>
+  <p id="status"></p>
+  <h2>Decoded payload</h2>
+  <pre id="payload"></pre>
+</main>
+
+<script>
+const SHARED_SECRET = ""; 
+// Optional: paste the per-app secret here for demo verification.
+// For production, use backend-side verification instead.
+
+function decodeDcData(dcdata) {
+  const decoded = atob(dcdata);
+  const parsed = JSON.parse(decoded);
+  return typeof parsed === "string" ? JSON.parse(parsed) : parsed;
+}
+
+async function verify(dcdata, dcsig, secret) {
+  if (!secret) return false;
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(dcdata));
+  const computed = btoa(String.fromCharCode(...new Uint8Array(signature)));
+  return computed === dcsig;
+}
+
+(async function run() {
+  const params = new URLSearchParams(window.location.search);
+  const dcdata = params.get("dcdata");
+  const dcsig = params.get("dcsig");
+
+  const status = document.getElementById("status");
+  const payload = document.getElementById("payload");
+
+  if (!dcdata || !dcsig) {
+    status.innerHTML = '<span class="bad">No DataCentral payload found.</span> Launch this app from DataCentral.';
+    payload.textContent = "";
+    return;
+  }
+
+  try {
+    const data = decodeDcData(dcdata);
+    const verified = await verify(dcdata, dcsig, SHARED_SECRET);
+
+    status.innerHTML = verified
+      ? '<span class="ok">Signature verified.</span>'
+      : '<span class="bad">Signature not verified.</span> Payload decoded, but do not trust it unless verified.';
+
+    payload.textContent = JSON.stringify(data, null, 2);
+  } catch (err) {
+    status.innerHTML = '<span class="bad">Invalid payload.</span>';
+    payload.textContent = String(err);
+  }
+})();
+</script>
+</body>
+</html>
