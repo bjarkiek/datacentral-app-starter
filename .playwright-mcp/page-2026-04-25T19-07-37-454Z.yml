@@ -1,0 +1,19 @@
+- main [ref=e3]:
+  - heading "Hello, Developer" [level=1] [ref=e4]
+  - paragraph [ref=e5]: This app received its user and tenant context from DataCentral.
+  - generic [ref=e6]:
+    - heading "User context" [level=2] [ref=e7]
+    - generic [ref=e8]:
+      - term [ref=e9]: User ID
+      - definition [ref=e10]: dev-user
+      - term [ref=e11]: Username
+      - definition [ref=e12]: developer
+      - term [ref=e13]: Tenant
+      - definition [ref=e14]: Development (dev-tenant)
+      - term [ref=e15]: Roles
+      - definition [ref=e16]: Admin
+      - term [ref=e17]: Frontend verified
+      - definition [ref=e18]: "false"
+  - generic [ref=e19]:
+    - heading "Backend verification" [level=2] [ref=e20]
+    - generic [ref=e21]: "null"
