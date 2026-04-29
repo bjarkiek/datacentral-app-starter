@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Datacentral Tool Embed — Diagnostic Page</title>
+<script src="https://cdn.jsdelivr.net/npm/powerbi-client@2.23.1/dist/powerbi.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #1a2028;
+    --panel-2: #232b36;
+    --border: #2d3744;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --good: #3fb950;
+    --warn: #d29922;
+    --bad: #f85149;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 16px;
+  }
+  h1 {
+    font-size: 18px;
+    margin: 0 0 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 8px;
+    font-weight: 600;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 12px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .panel.full { grid-column: 1 / -1; }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--border);
+    font-size: 13px;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row .key {
+    color: var(--muted);
+    flex: 0 0 130px;
+    font-family: var(--mono);
+  }
+  .row .val {
+    flex: 1;
+    font-family: var(--mono);
+    word-break: break-all;
+    white-space: pre-wrap;
+  }
+  .empty { color: var(--muted); font-style: italic; }
+  .pill {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .pill.waiting { background: rgba(210, 153, 34, 0.15); color: var(--warn); }
+  .pill.ok      { background: rgba(63, 185, 80, 0.15); color: var(--good); }
+  .pill.err     { background: rgba(248, 81, 73, 0.15); color: var(--bad); }
+  .log {
+    background: var(--panel-2);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+    max-height: 320px;
+    overflow: auto;
+  }
+  .log-entry {
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--border);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .log-entry:last-child { border-bottom: 0; }
+  .log-entry .ts { color: var(--muted); margin-right: 6px; }
+  .log-entry.tag-info     { color: var(--text); }
+  .log-entry.tag-send     { color: var(--accent); }
+  .log-entry.tag-recv     { color: var(--good); }
+  .log-entry.tag-warn     { color: var(--warn); }
+  .log-entry.tag-error    { color: var(--bad); }
+  .actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  button {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button:hover { background: #2c3645; }
+  details { margin-top: 8px; }
+  details summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 12px;
+    user-select: none;
+  }
+  pre {
+    background: var(--panel-2);
+    border-radius: 6px;
+    padding: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    overflow: auto;
+    margin: 6px 0 0;
+    max-height: 240px;
+  }
+
+  /* Decoded token cards */
+  .token-card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent), var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+  }
+  .token-card:last-child { margin-bottom: 0; }
+  .token-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .token-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    color: #fff;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
+  }
+  .token-icon.dc { background: linear-gradient(135deg, #2ea043, #1f6f33); }
+  .token-icon.aad { background: linear-gradient(135deg, #0078d4, #004c87); }
+  .token-card-header .titles { flex: 1; min-width: 0; }
+  .token-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .token-subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .token-section { margin: 14px 0; }
+  .token-section:last-child { margin-bottom: 0; }
+  .token-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .claim-grid {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 6px 14px;
+    font-size: 12px;
+  }
+  .claim-key {
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+  .claim-val {
+    font-family: var(--mono);
+    word-break: break-all;
+    color: var(--text);
+  }
+  .claim-val .annot {
+    color: var(--muted);
+    font-style: italic;
+    margin-left: 6px;
+  }
+  .validity-bar {
+    height: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .validity-fill { height: 100%; transition: width 0.4s ease; border-radius: 3px; }
+  .validity-fill.good { background: var(--good); }
+  .validity-fill.warn { background: var(--warn); }
+  .validity-fill.bad  { background: var(--bad); }
+  .use-cases {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .use-cases li { margin: 4px 0; }
+  .use-cases code {
+    font-family: var(--mono);
+    background: rgba(88, 166, 255, 0.1);
+    color: var(--accent);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+  .scope-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .scope-chip {
+    background: rgba(88, 166, 255, 0.1);
+    color: var(--accent);
+    border: 1px solid rgba(88, 166, 255, 0.25);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  /* Power BI embed */
+  .pbi-container {
+    width: 100%;
+    height: 600px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-top: 12px;
+    overflow: hidden;
+  }
+  .pbi-container iframe { border: 0 !important; }
+
+  /* Modal */
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal.open { display: flex; }
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+  }
+  .modal-dialog {
+    position: relative;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: min(460px, calc(100% - 32px));
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .modal-close {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 6px;
+  }
+  .modal-close:hover { color: var(--text); background: transparent; }
+  .modal-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .modal-body label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .modal-body input {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .modal-body input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+  }
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    background: rgba(0,0,0,0.15);
+  }
+  .modal-footer .primary {
+    background: var(--accent);
+    color: #0a1628;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .modal-footer .primary:hover { background: #79b8ff; }
+  .modal-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* Segmented token toggle */
+  .token-toggle {
+    display: flex;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px;
+    gap: 3px;
+  }
+  .token-toggle-option {
+    flex: 1;
+    position: relative;
+    text-align: center;
+    padding: 7px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    text-transform: none;
+    letter-spacing: 0;
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+  }
+  .token-toggle-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    inset: 0;
+  }
+  .token-toggle-option.checked {
+    background: var(--accent);
+    color: #0a1628;
+    font-weight: 600;
+  }
+  .token-toggle-option:not(.checked):hover { color: var(--text); }
+  .token-toggle-option.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* DAX query panel */
+  .dax-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .dax-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .dax-grid input,
+  textarea.dax-input {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .dax-grid input:focus,
+  textarea.dax-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+  }
+  textarea.dax-input {
+    width: 100%;
+    min-height: 140px;
+    resize: vertical;
+    line-height: 1.5;
+    white-space: pre;
+  }
+  .dax-result {
+    margin-top: 10px;
+    max-height: 420px;
+    font-size: 11px;
+  }
+  .dax-result.err { color: var(--bad); }
+  .dax-status {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    font-family: var(--mono);
+  }
+  .dax-status.ok { color: var(--good); }
+  .dax-status.err { color: var(--bad); }
+</style>
+</head>
+<body>
+
+<h1>
+  Datacentral Tool Embed Diagnostic
+  <span id="tokenStatus" class="pill waiting">Awaiting token</span>
+</h1>
+<div class="sub">
+  Loaded into an iframe by datacentral, this page shows the query parameters it received
+  and performs the <code>postMessage</code> handshake to retrieve the user's access token.
+</div>
+
+<div class="grid">
+
+  <!-- Query parameters panel -->
+  <div class="panel">
+    <h2>Query parameters</h2>
+    <div id="qp"></div>
+    <details>
+      <summary>Full URL</summary>
+      <pre id="fullUrl"></pre>
+    </details>
+  </div>
+
+  <!-- Embed context panel -->
+  <div class="panel">
+    <h2>Embed context</h2>
+    <div class="row"><div class="key">In iframe?</div><div class="val" id="ctxIframe"></div></div>
+    <div class="row"><div class="key">Parent origin</div><div class="val" id="ctxParentOrigin"></div></div>
+    <div class="row"><div class="key">My origin</div><div class="val" id="ctxMyOrigin"></div></div>
+    <div class="row"><div class="key">Referrer</div><div class="val" id="ctxReferrer"></div></div>
+  </div>
+
+  <!-- Access token panel -->
+  <div class="panel full">
+    <h2>Access token (via postMessage)</h2>
+    <div class="row">
+      <div class="key">Status</div>
+      <div class="val" id="tokenLine"><span class="empty">No token received yet. Sent <code>{ type: 'AppReady ' }</code> to parent on load.</span></div>
+    </div>
+    <details id="tokenDecoded" style="display:none">
+      <summary>Decoded JWT payload</summary>
+      <pre id="tokenPayload"></pre>
+    </details>
+    <div class="actions">
+      <button id="btnHandshake">Re-send handshake</button>
+      <button id="btnCopyToken" disabled>Copy token</button>
+      <button id="btnDecodeMessage" disabled>Decode postMessage</button>
+    </div>
+  </div>
+
+  <!-- Decoded tokens panel -->
+  <div class="panel full" id="decodedPanel" style="display:none">
+    <h2>Decoded postMessage</h2>
+    <div id="decodedContent"></div>
+  </div>
+
+  <!-- Power BI embed panel -->
+  <div class="panel full">
+    <h2>Power BI report embed</h2>
+    <div class="row" style="border:0; padding:0; font-size:12px; color:var(--muted)">
+      Embeds a Power BI report using the <code>aadToken</code> received via postMessage.
+      The token must be issued for the Power BI Service audience
+      (<code>https://analysis.windows.net/powerbi/api</code>) and the user needs access to the workspace.
+    </div>
+    <div class="actions">
+      <button id="btnOpenEmbed">Embed Power BI report…</button>
+      <button id="btnClearEmbed" style="display:none">Clear embed</button>
+    </div>
+    <div id="pbiContainer" class="pbi-container" style="display:none"></div>
+  </div>
+
+  <!-- DAX query panel -->
+  <div class="panel full">
+    <h2>DAX query (executeQueries API)</h2>
+    <div class="row" style="border:0; padding:0; font-size:12px; color:var(--muted)">
+      Posts a DAX <code>EVALUATE</code> query directly to the dataset behind the report via
+      <code>POST https://api.powerbi.com/v1.0/myorg/groups/{workspaceId}/datasets/{datasetId}/executeQueries</code>.
+      Uses the same token classifier as the embed flow.
+    </div>
+    <div class="dax-grid">
+      <label>Workspace ID
+        <input type="text" id="daxWorkspaceId" autocomplete="off" spellcheck="false"
+               value="adbdd3f4-74a4-4f66-ba35-2ba4df296648">
+      </label>
+      <label>Report ID
+        <input type="text" id="daxReportId" autocomplete="off" spellcheck="false"
+               value="b917bdc8-28de-4569-928f-04e5c18e486a">
+      </label>
+      <label>Dataset ID
+        <input type="text" id="daxDatasetId" autocomplete="off" spellcheck="false"
+               placeholder="(auto-resolved from report)">
+      </label>
+    </div>
+    <label class="dax-grid" style="display:block">
+      <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); font-weight:600; display:block; margin-bottom:4px">DAX query</span>
+      <textarea id="daxQuery" class="dax-input" spellcheck="false"></textarea>
+    </label>
+    <div class="actions">
+      <button id="btnRunDax">Run DAX query</button>
+      <button id="btnResolveDataset">Resolve dataset ID</button>
+      <button id="btnCopyDaxResult" disabled>Copy result</button>
+      <button id="btnClearDax">Clear result</button>
+    </div>
+    <div id="daxStatus" class="dax-status"></div>
+    <pre id="daxResult" class="dax-result" style="display:none"></pre>
+  </div>
+
+  <!-- Embed modal -->
+  <div id="embedModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="embedModalTitle">
+    <div class="modal-backdrop" data-close></div>
+    <form class="modal-dialog" id="embedForm">
+      <div class="modal-header">
+        <h3 id="embedModalTitle">Embed Power BI report</h3>
+        <button type="button" class="modal-close" data-close aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <label>Power BI workspace ID
+          <input type="text" id="embedWorkspaceId" autocomplete="off" spellcheck="false"
+                 value="adbdd3f4-74a4-4f66-ba35-2ba4df296648" required>
+        </label>
+        <label>Report ID
+          <input type="text" id="embedReportId" autocomplete="off" spellcheck="false"
+                 value="b917bdc8-28de-4569-928f-04e5c18e486a" required>
+        </label>
+        <label>Azure tenant ID
+          <input type="text" id="embedTenantId" autocomplete="off" spellcheck="false"
+                 value="60ae6057-4b2f-4117-b377-8cd6af77fe07" required>
+        </label>
+        <label>Token to use
+          <div class="token-toggle" id="embedTokenToggle">
+            <label class="token-toggle-option" data-choice="embedToken">
+              <input type="radio" name="embedTokenChoice" value="embedToken">
+              <span>embedToken</span>
+            </label>
+            <label class="token-toggle-option" data-choice="aadToken">
+              <input type="radio" name="embedTokenChoice" value="aadToken">
+              <span>aadToken (PBI)</span>
+            </label>
+          </div>
+        </label>
+        <label id="aadOverrideWrap" style="display:none">
+          Override aadToken (paste a PBI-audience token)
+          <textarea id="aadTokenOverride" class="dax-input" rows="3" spellcheck="false"
+            placeholder="Paste a JWT here to use it instead of the postMessage aadToken. Get one with: az account get-access-token --resource https://analysis.windows.net/powerbi/api --query accessToken -o tsv"></textarea>
+        </label>
+        <div class="modal-hint" id="embedHint"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" data-close>Cancel</button>
+        <button type="submit" class="primary" id="btnEmbedSubmit">Embed</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Event log panel -->
+  <div class="panel full">
+    <h2>Event log</h2>
+    <div class="log" id="log"></div>
+    <div class="actions">
+      <button id="btnClearLog">Clear log</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  // ------------------------------------------------------------------
+  // Tiny logger
+  // ------------------------------------------------------------------
+  const logEl = document.getElementById('log');
+  function log(tag, msg) {
+    const div = document.createElement('div');
+    div.className = 'log-entry tag-' + tag;
+    const ts = new Date().toISOString().substr(11, 12);
+    div.innerHTML = '<span class="ts">' + ts + '</span>' +
+                    '<span class="tag">[' + tag.toUpperCase() + ']</span> ' +
+                    escapeHtml(msg);
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // ------------------------------------------------------------------
+  // Render query parameters
+  // ------------------------------------------------------------------
+  const qpEl = document.getElementById('qp');
+  document.getElementById('fullUrl').textContent = window.location.href;
+
+  const params = new URLSearchParams(window.location.search);
+  const knownKeys = ['dcdata', 'dcsig'];
+
+  // Make sure the known keys are always shown, even if empty
+  const allKeys = new Set([...knownKeys, ...params.keys()]);
+
+  if (allKeys.size === 0) {
+    qpEl.innerHTML = '<div class="empty">No query parameters present.</div>';
+  } else {
+    [...allKeys].forEach(k => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const v = params.get(k);
+      row.innerHTML =
+        '<div class="key">' + escapeHtml(k) + '</div>' +
+        '<div class="val">' +
+          (v == null ? '<span class="empty">(not provided)</span>' : escapeHtml(v)) +
+        '</div>';
+      qpEl.appendChild(row);
+    });
+  }
+
+  log('info', 'Query parameters: ' + (params.toString() || '(none)'));
+
+  // ------------------------------------------------------------------
+  // Embed context
+  // ------------------------------------------------------------------
+  const inIframe = window.self !== window.top;
+  document.getElementById('ctxIframe').textContent = inIframe ? 'yes' : 'no (open this page in datacentral)';
+  document.getElementById('ctxMyOrigin').textContent = window.location.origin;
+  document.getElementById('ctxReferrer').textContent = document.referrer || '(none)';
+  let parentOrigin = '(unknown)';
+  try {
+    if (document.referrer) parentOrigin = new URL(document.referrer).origin;
+  } catch (_) { /* ignore */ }
+  document.getElementById('ctxParentOrigin').textContent = parentOrigin;
+
+  // ------------------------------------------------------------------
+  // postMessage handshake
+  //
+  // The datacentral parent listens for an 'AppReady ' message (note the
+  // TRAILING SPACE — that's what the parent code currently checks for) and
+  // responds with { type: 'AccessToken', token: <jwt> }.
+  //
+  // Reference: angular/src/app/main/embed-tool/embed-tool.component.ts
+  // ------------------------------------------------------------------
+  const APP_READY_TYPE  = 'AppReady ';      // <-- trailing space is intentional
+  const ACCESS_TOKEN_TYPE = 'AccessToken';
+
+  let receivedToken = null;
+  let lastMessageData = null;
+
+  function sendHandshake() {
+    if (!window.parent || window.parent === window) {
+      log('warn', 'No parent window — cannot send handshake. Open this page inside a datacentral Tool.');
+      return;
+    }
+    log('send', 'Posting { type: "' + APP_READY_TYPE + '" } to parent (target: "*")');
+    // We don't know the parent origin reliably (referrer may be stripped),
+    // so we use "*". The parent uses tool.url as the target origin when
+    // sending us the token, which is fine.
+    window.parent.postMessage({ type: APP_READY_TYPE }, '*');
+  }
+
+  function setTokenStatus(state, label) {
+    const pill = document.getElementById('tokenStatus');
+    pill.className = 'pill ' + state;
+    pill.textContent = label;
+  }
+
+  function showToken(token) {
+    receivedToken = token;
+    const tokenLineEl = document.getElementById('tokenLine');
+    tokenLineEl.textContent = token;
+    setTokenStatus('ok', 'Token received');
+    document.getElementById('btnCopyToken').disabled = false;
+
+    // If it looks like a JWT, decode the payload for convenience.
+    const parts = String(token).split('.');
+    if (parts.length === 3) {
+      try {
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        document.getElementById('tokenDecoded').style.display = '';
+        document.getElementById('tokenPayload').textContent = JSON.stringify(payload, null, 2);
+        if (payload.exp) {
+          const expDate = new Date(payload.exp * 1000);
+          log('info', 'JWT expires at ' + expDate.toISOString());
+        }
+      } catch (e) {
+        log('warn', 'Token looks like JWT but payload could not be decoded: ' + e.message);
+      }
+    }
+  }
+
+  window.addEventListener('message', (event) => {
+    const data = event.data;
+    const summary =
+      'origin=' + event.origin + '  ' +
+      'data=' + (typeof data === 'object' ? JSON.stringify(data) : String(data));
+    log('recv', 'message  ' + summary);
+
+    if (data && typeof data === 'object' && data.type === ACCESS_TOKEN_TYPE) {
+      if (typeof data.token === 'string' && data.token.length > 0) {
+        log('info', 'Received access token (' + data.token.length + ' chars) from ' + event.origin);
+        lastMessageData = data;
+        document.getElementById('btnDecodeMessage').disabled = false;
+        if (typeof data.aadToken === 'string' && data.aadToken.length > 0) {
+          log('info', 'Message also contains aadToken (' + data.aadToken.length + ' chars)');
+        }
+        showToken(data.token);
+      } else {
+        log('warn', 'AccessToken message had no token field');
+      }
+    }
+  });
+
+  // ------------------------------------------------------------------
+  // Decode postMessage — pretty-print both tokens with explanations
+  // ------------------------------------------------------------------
+  const KNOWN_AUDIENCES = {
+    '00000003-0000-0000-c000-000000000000': 'Microsoft Graph',
+    '00000002-0000-0000-c000-000000000000': 'Azure AD Graph (legacy)',
+    'https://graph.microsoft.com': 'Microsoft Graph',
+    'https://management.azure.com': 'Azure Resource Manager',
+    'https://analysis.windows.net/powerbi/api': 'Power BI Service',
+    'https://storage.azure.com': 'Azure Storage',
+    'https://vault.azure.net': 'Azure Key Vault',
+    'https://database.windows.net': 'Azure SQL'
+  };
+
+  // Map of opaque/URN claim names → friendly label
+  const CLAIM_LABELS = {
+    // .NET / ASP.NET Identity / ABP
+    'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier': 'User ID',
+    'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name': 'Username',
+    'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress': 'Email',
+    'http://schemas.microsoft.com/ws/2008/06/identity/claims/role': 'Role',
+    'http://www.aspnetboilerplate.com/identity/claims/tenantId': 'Tenant ID',
+    'AspNet.Identity.SecurityStamp': 'Security stamp',
+    'token_validity_key': 'Token validity key',
+    'refresh_token_validity_key': 'Refresh validity key',
+    'user_identifier': 'User identifier',
+    'token_type': 'Token type code',
+    // Standard JWT
+    'sub': 'Subject',
+    'jti': 'JWT ID',
+    'iat': 'Issued at',
+    'nbf': 'Not before',
+    'exp': 'Expires',
+    'iss': 'Issuer',
+    'aud': 'Audience',
+    // AAD / Entra
+    'oid': 'Object ID',
+    'tid': 'Tenant ID',
+    'upn': 'User principal',
+    'unique_name': 'Unique name',
+    'name': 'Display name',
+    'given_name': 'Given name',
+    'family_name': 'Family name',
+    'scp': 'Scopes',
+    'roles': 'App roles',
+    'appid': 'Application ID',
+    'app_displayname': 'Application name',
+    'idtyp': 'Identity type',
+    'amr': 'Auth methods',
+    'acr': 'Auth class',
+    'acrs': 'Auth class refs',
+    'aio': 'AAD opaque',
+    'puid': 'Personal unique ID',
+    'rh': 'Refresh hint',
+    'sid': 'Session ID',
+    'tenant_region_scope': 'Tenant region',
+    'wids': 'Role template IDs',
+    'platf': 'Platform code',
+    'ipaddr': 'IP address',
+    'deviceid': 'Device ID',
+    'signin_state': 'Sign-in state',
+    'ver': 'Version',
+    'uti': 'Token unique ID',
+    'appidacr': 'App auth class',
+    'acct': 'Account type'
+  };
+
+  function b64UrlDecode(s) {
+    s = s.replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    // Handle UTF-8 properly
+    const bin = atob(s);
+    try {
+      return decodeURIComponent(bin.split('').map(c =>
+        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      ).join(''));
+    } catch (_) {
+      return bin;
+    }
+  }
+
+  function decodeJwt(jwt) {
+    if (!jwt || typeof jwt !== 'string') return null;
+    const parts = jwt.split('.');
+    if (parts.length !== 3) return null;
+    try {
+      return {
+        header: JSON.parse(b64UrlDecode(parts[0])),
+        payload: JSON.parse(b64UrlDecode(parts[1])),
+        signature: parts[2]
+      };
+    } catch (e) {
+      log('warn', 'JWT decode failed: ' + e.message);
+      return null;
+    }
+  }
+
+  function fmtAbsolute(unixSec) {
+    if (!unixSec && unixSec !== 0) return '—';
+    return new Date(unixSec * 1000).toLocaleString();
+  }
+
+  function fmtRelative(unixSec) {
+    if (!unixSec && unixSec !== 0) return '';
+    const diffMs = unixSec * 1000 - Date.now();
+    const past = diffMs < 0;
+    const abs = Math.abs(diffMs);
+    const min = Math.round(abs / 60000);
+    const hr = Math.round(abs / 3600000);
+    const day = Math.round(abs / 86400000);
+    let s;
+    if (min < 1) s = 'just now';
+    else if (min < 60) s = min + 'm';
+    else if (hr < 48) s = hr + 'h';
+    else s = day + 'd';
+    if (s === 'just now') return s;
+    return past ? s + ' ago' : 'in ' + s;
+  }
+
+  function validityState(payload) {
+    const now = Date.now() / 1000;
+    const exp = payload.exp;
+    const iat = payload.iat || payload.nbf || (exp ? exp - 3600 : now);
+    if (!exp) return { state: 'warn', label: 'No expiry', pct: 100 };
+    if (now >= exp) return { state: 'bad', label: 'Expired', pct: 0 };
+    const total = exp - iat;
+    const remaining = exp - now;
+    const pct = Math.max(2, Math.min(100, (remaining / total) * 100));
+    const state = remaining < 300 ? 'bad' : remaining < 1800 ? 'warn' : 'good';
+    return { state, label: 'Valid · ' + fmtRelative(exp).replace('in ', '') + ' left', pct };
+  }
+
+  function el(tag, attrs, children) {
+    const e = document.createElement(tag);
+    if (attrs) {
+      for (const k in attrs) {
+        if (k === 'class') e.className = attrs[k];
+        else if (k === 'style') e.style.cssText = attrs[k];
+        else e.setAttribute(k, attrs[k]);
+      }
+    }
+    if (children) {
+      (Array.isArray(children) ? children : [children]).forEach(c => {
+        if (c == null) return;
+        if (typeof c === 'string') e.appendChild(document.createTextNode(c));
+        else e.appendChild(c);
+      });
+    }
+    return e;
+  }
+
+  function claimGrid(rows) {
+    const grid = el('div', { class: 'claim-grid' });
+    rows.forEach(([k, v, annot]) => {
+      if (v == null || v === '') return;
+      grid.appendChild(el('div', { class: 'claim-key' }, k));
+      const valEl = el('div', { class: 'claim-val' }, String(v));
+      if (annot) valEl.appendChild(el('span', { class: 'annot' }, '— ' + annot));
+      grid.appendChild(valEl);
+    });
+    return grid;
+  }
+
+  function section(title, body) {
+    return el('div', { class: 'token-section' }, [
+      el('div', { class: 'token-section-title' }, title),
+      body
+    ]);
+  }
+
+  function renderValidityBar(vs) {
+    return el('div', { class: 'validity-bar' }, [
+      el('div', {
+        class: 'validity-fill ' + vs.state,
+        style: 'width:' + vs.pct + '%'
+      })
+    ]);
+  }
+
+  function buildDcCard(jwt, fieldName) {
+    const p = jwt.payload;
+    const userId = p['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || p.sub;
+    const userName = p['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'];
+    const email = p['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'];
+    const role = p['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
+    const tenantId = p['http://www.aspnetboilerplate.com/identity/claims/tenantId'];
+    const vs = validityState(p);
+
+    const card = el('div', { class: 'token-card' });
+
+    card.appendChild(el('div', { class: 'token-card-header' }, [
+      el('div', { class: 'token-icon dc' }, 'DC'),
+      el('div', { class: 'titles' }, [
+        el('div', { class: 'token-title' }, 'DataCentral Access Token' +
+          (fieldName ? ' — postMessage.' + fieldName : '')),
+        el('div', { class: 'token-subtitle' },
+          'Local JWT issued by the DataCentral backend — ' + (jwt.header.alg || '?') + ' signed')
+      ]),
+      el('span', { class: 'pill ' + vs.state }, vs.label)
+    ]));
+
+    card.appendChild(section('Identity', claimGrid([
+      ['User ID', userId],
+      ['Username', userName],
+      ['Email', email],
+      ['Role', role],
+      ['Tenant ID', tenantId]
+    ])));
+
+    const validitySection = el('div', null, [
+      claimGrid([
+        ['Issuer', p.iss],
+        ['Audience', p.aud],
+        ['Algorithm', jwt.header.alg],
+        ['Token type', jwt.header.typ],
+        ['Issued', fmtAbsolute(p.iat), fmtRelative(p.iat)],
+        ['Not before', fmtAbsolute(p.nbf), fmtRelative(p.nbf)],
+        ['Expires', fmtAbsolute(p.exp), fmtRelative(p.exp)],
+        ['JWT ID', p.jti]
+      ]),
+      renderValidityBar(vs)
+    ]);
+    card.appendChild(section('Token metadata & validity', validitySection));
+
+    const useCases = el('ul', { class: 'use-cases' });
+    [
+      'Authenticate every backend call by sending it as the <code>Authorization: Bearer &lt;token&gt;</code> header on requests to the DataCentral API.',
+      'Identifies the user (<code>' + (userName || userId) + '</code>) and tenant (<code>' + (tenantId || '?') + '</code>) — the backend uses these to scope data access.',
+      'The <code>Role</code> claim (<code>' + (role || '?') + '</code>) drives ASP.NET role-based authorization checks ([Authorize(Roles=...)]).',
+      'Symmetrically signed (<code>' + (jwt.header.alg || 'HS256') + '</code>) — only the DataCentral backend can issue or verify it. Don\'t expose it to third-party services.',
+      'Short-lived (~24h here). Use the matching refresh token (kept by the host app) to get a new access token; this iframe should ask the parent for a fresh one rather than caching long-term.'
+    ].forEach(html => {
+      const li = document.createElement('li');
+      li.innerHTML = html;
+      useCases.appendChild(li);
+    });
+    card.appendChild(section('What you can do with this', useCases));
+
+    const det = el('details');
+    det.appendChild(el('summary', null, 'Raw decoded JSON'));
+    det.appendChild(el('pre', null, JSON.stringify({ header: jwt.header, payload: jwt.payload }, null, 2)));
+    card.appendChild(det);
+
+    return card;
+  }
+
+  function buildAadCard(jwt, fieldName) {
+    const p = jwt.payload;
+    const audLabel = KNOWN_AUDIENCES[p.aud] || null;
+    const scopes = (p.scp || '').split(' ').filter(Boolean);
+    const vs = validityState(p);
+
+    const card = el('div', { class: 'token-card' });
+
+    card.appendChild(el('div', { class: 'token-card-header' }, [
+      el('div', { class: 'token-icon aad' }, 'AD'),
+      el('div', { class: 'titles' }, [
+        el('div', { class: 'token-title' }, 'Azure AD / Microsoft Entra Access Token' +
+          (fieldName ? ' — postMessage.' + fieldName : '')),
+        el('div', { class: 'token-subtitle' },
+          'For ' + (audLabel || 'audience: ' + p.aud) + ' — ' + (jwt.header.alg || '?') + ' signed')
+      ]),
+      el('span', { class: 'pill ' + vs.state }, vs.label)
+    ]));
+
+    card.appendChild(section('Identity', claimGrid([
+      ['Display name', p.name],
+      ['UPN', p.upn || p.unique_name],
+      ['Given name', p.given_name],
+      ['Family name', p.family_name],
+      ['Object ID', p.oid],
+      ['Tenant ID', p.tid],
+      ['Auth methods', Array.isArray(p.amr) ? p.amr.join(', ') : p.amr,
+        Array.isArray(p.amr) && p.amr.includes('mfa') ? 'MFA satisfied' : null],
+      ['IP address', p.ipaddr],
+      ['Device ID', p.deviceid]
+    ])));
+
+    const appBody = el('div', null, [
+      claimGrid([
+        ['App name', p.app_displayname],
+        ['App ID', p.appid],
+        ['Audience', p.aud, audLabel],
+        ['Issuer', p.iss],
+        ['Identity type', p.idtyp]
+      ]),
+      scopes.length ? el('div', { style: 'margin-top:10px' }, [
+        el('div', { class: 'token-section-title', style: 'margin-bottom:4px' }, 'Scopes'),
+        (() => {
+          const wrap = el('div', { class: 'scope-list' });
+          scopes.forEach(s => wrap.appendChild(el('span', { class: 'scope-chip' }, s)));
+          return wrap;
+        })()
+      ]) : null
+    ]);
+    card.appendChild(section('Application & scopes', appBody));
+
+    card.appendChild(section('Validity', el('div', null, [
+      claimGrid([
+        ['Issued', fmtAbsolute(p.iat), fmtRelative(p.iat)],
+        ['Not before', fmtAbsolute(p.nbf), fmtRelative(p.nbf)],
+        ['Expires', fmtAbsolute(p.exp), fmtRelative(p.exp)],
+        ['Token version', p.ver]
+      ]),
+      renderValidityBar(vs)
+    ])));
+
+    const useCases = el('ul', { class: 'use-cases' });
+    const audienceTarget = audLabel || p.aud || 'the target API';
+    const scopeStr = scopes.join(' ') || '(none in scp)';
+    const items = [
+      'Call <code>' + audienceTarget + '</code> APIs as the signed-in user — pass it as <code>Authorization: Bearer &lt;aadToken&gt;</code>.',
+      'Limited to the granted scopes: <code>' + scopeStr + '</code>. Anything outside those scopes will return 403 from Microsoft Graph.'
+    ];
+    if (audLabel === 'Microsoft Graph' && scopes.includes('User.Read')) {
+      items.push('With <code>User.Read</code> + <code>profile</code>, call <code>GET https://graph.microsoft.com/v1.0/me</code> to fetch the user\'s display name, email, photo, etc.');
+    }
+    items.push(
+      'The <code>oid</code> (<code>' + (p.oid || '?') + '</code>) + <code>tid</code> pair uniquely identifies this user across Microsoft 365 — use it to correlate users between AAD and your own DB, not <code>upn</code> (which can change).',
+      'RSA-signed by Microsoft (<code>' + (jwt.header.alg || 'RS256') + '</code>) — anyone can verify it against the AAD JWKS endpoint, but only Microsoft can mint one.',
+      'Short-lived (~1h). Don\'t persist it; request a fresh one from the host (the parent\'s MSAL instance) when you need it.'
+    );
+    items.forEach(html => {
+      const li = document.createElement('li');
+      li.innerHTML = html;
+      useCases.appendChild(li);
+    });
+    card.appendChild(section('What you can do with this', useCases));
+
+    const det = el('details');
+    det.appendChild(el('summary', null, 'Raw decoded JSON'));
+    det.appendChild(el('pre', null, JSON.stringify({ header: jwt.header, payload: jwt.payload }, null, 2)));
+    card.appendChild(det);
+
+    return card;
+  }
+
+  function buildUnknownField(name, value) {
+    const card = el('div', { class: 'token-card' });
+    card.appendChild(el('div', { class: 'token-card-header' }, [
+      el('div', { class: 'token-icon', style: 'background:#555' }, '?'),
+      el('div', { class: 'titles' }, [
+        el('div', { class: 'token-title' }, 'Field: ' + name),
+        el('div', { class: 'token-subtitle' }, 'Not a JWT — shown as raw value')
+      ])
+    ]));
+    card.appendChild(el('pre', null, typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)));
+    return card;
+  }
+
+  function decodeMessage() {
+    const panel = document.getElementById('decodedPanel');
+    const content = document.getElementById('decodedContent');
+    content.innerHTML = '';
+
+    if (!lastMessageData) {
+      content.appendChild(el('div', { class: 'empty' }, 'No postMessage received yet.'));
+      panel.style.display = '';
+      return;
+    }
+
+    // Top-level summary of the message envelope
+    content.appendChild(el('div', { class: 'token-section', style: 'margin-top:0' }, [
+      el('div', { class: 'token-section-title' }, 'Message envelope'),
+      claimGrid([
+        ['type', lastMessageData.type],
+        ['Fields', Object.keys(lastMessageData).join(', ')]
+      ])
+    ]));
+
+    // Walk known fields
+    Object.keys(lastMessageData).forEach(key => {
+      if (key === 'type') return;
+      const val = lastMessageData[key];
+      const jwt = typeof val === 'string' ? decodeJwt(val) : null;
+      if (!jwt) {
+        content.appendChild(buildUnknownField(key, val));
+        return;
+      }
+      // Heuristic: AAD-issued tokens use sts.windows.net or login.microsoftonline.com
+      const iss = String(jwt.payload.iss || '');
+      const isAad = /sts\.windows\.net|login\.microsoftonline|login\.windows\.net/i.test(iss);
+      content.appendChild(isAad ? buildAadCard(jwt, key) : buildDcCard(jwt, key));
+    });
+
+    panel.style.display = '';
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    log('info', 'Decoded postMessage rendered');
+  }
+
+  // ------------------------------------------------------------------
+  // Power BI embed
+  // ------------------------------------------------------------------
+  const PBI_AUDIENCE = 'https://analysis.windows.net/powerbi/api';
+
+  // Inspect a token and decide whether the SDK should treat it as a
+  // user/service-principal AAD token (Aad) or a Power BI service embed token
+  // (Embed). The two look superficially similar but the SDK handshake is
+  // different — getting it wrong causes 401/403 at /metadata/cluster.
+  //
+  //   iss: https://sts.windows.net/<tenant>/         → AAD token  → TokenType.Aad
+  //   iss: https://api.powerbi.com/... or similar    → embed token → TokenType.Embed
+  function classifyPbiToken(token) {
+    if (!token) return { kind: 'none' };
+    const decoded = decodeJwt(token);
+    if (!decoded) return { kind: 'opaque' };
+    const iss = String(decoded.payload.iss || '');
+    const aud = String(decoded.payload.aud || '');
+    if (/sts\.windows\.net|login\.microsoftonline|login\.windows\.net/i.test(iss)) {
+      return { kind: 'aad', iss, aud, decoded };
+    }
+    if (/api\.powerbi\.com|analysis\.windows\.net/i.test(iss)) {
+      return { kind: 'embed', iss, aud, decoded };
+    }
+    return { kind: 'unknown', iss, aud, decoded };
+  }
+
+  function getSelectedTokenChoice() {
+    const checked = document.querySelector('input[name="embedTokenChoice"]:checked');
+    return checked ? checked.value : null;
+  }
+
+  function setTokenChoice(value) {
+    const inputs = document.querySelectorAll('input[name="embedTokenChoice"]');
+    inputs.forEach(i => { i.checked = (i.value === value); });
+    // Update visual checked class on the wrapper labels
+    document.querySelectorAll('.token-toggle-option').forEach(opt => {
+      opt.classList.toggle('checked', opt.dataset.choice === value);
+    });
+    updateEmbedHint();
+  }
+
+  function refreshTokenToggleAvailability() {
+    const data = lastMessageData || {};
+    const hasEmbedToken = typeof data.embedToken === 'string' && data.embedToken.length > 0;
+    const hasAadToken = typeof data.aadToken === 'string' && data.aadToken.length > 0;
+    document.querySelectorAll('.token-toggle-option').forEach(opt => {
+      const choice = opt.dataset.choice;
+      const has = (choice === 'embedToken' ? hasEmbedToken : hasAadToken);
+      opt.classList.toggle('disabled', !has);
+      const input = opt.querySelector('input');
+      input.disabled = !has;
+    });
+  }
+
+  // Scan every string field in the postMessage and rank candidates as
+  // PBI-usable AAD tokens. Hosts sometimes label tokens inconsistently —
+  // a PBI-audience AAD token can sit in `aadToken`, `embedToken`, `pbiToken`,
+  // or any custom name. We pick by inspecting the JWT, not the field name.
+  function findBestPbiAadToken(data) {
+    const ranked = [];
+    for (const field of Object.keys(data || {})) {
+      const v = data[field];
+      if (typeof v !== 'string' || v.length < 50) continue;
+      const c = classifyPbiToken(v);
+      if (c.kind !== 'aad') continue;
+      const aud = String(c.aud || '');
+      const audPbi = aud === PBI_AUDIENCE ||
+                     aud.indexOf('powerbi') !== -1 ||
+                     aud.indexOf('analysis.windows.net') !== -1;
+      const expOk = !c.decoded.payload.exp || c.decoded.payload.exp * 1000 > Date.now();
+      // Score: PBI audience > anything else, valid exp > expired
+      const score = (audPbi ? 100 : 0) + (expOk ? 10 : 0);
+      ranked.push({ field, token: v, classification: c, audPbi, expOk, score });
+    }
+    ranked.sort((a, b) => b.score - a.score);
+    return ranked[0] || null;
+  }
+
+  // Returns the token that will actually be sent to PBI for the given choice,
+  // taking the optional override textarea into account.
+  function resolveTokenForChoice(choice) {
+    const data = lastMessageData || {};
+    if (choice === 'aadToken') {
+      const override = (document.getElementById('aadTokenOverride').value || '').trim();
+      if (override) return { token: override, source: 'override (pasted)', field: null };
+      // Prefer a PBI-audience AAD token from ANY field, not just `aadToken`
+      const best = findBestPbiAadToken(data);
+      if (best && best.audPbi) {
+        return { token: best.token, source: 'postMessage.' + best.field + ' (auto-found PBI audience)', field: best.field };
+      }
+      // No PBI-audience AAD token anywhere — fall back to the literal aadToken field
+      if (data.aadToken) {
+        return { token: data.aadToken, source: 'postMessage.aadToken (no PBI-audience token in any field)', field: 'aadToken' };
+      }
+      return { token: null, source: 'none', field: null };
+    }
+    if (choice === 'embedToken') {
+      if (data.embedToken) return { token: data.embedToken, source: 'postMessage.embedToken', field: 'embedToken' };
+      return { token: null, source: 'none', field: null };
+    }
+    return { token: null, source: 'none', field: null };
+  }
+
+  function updateEmbedHint() {
+    const hint = document.getElementById('embedHint');
+    const choice = getSelectedTokenChoice();
+    const overrideWrap = document.getElementById('aadOverrideWrap');
+
+    // Show the override textarea only when aadToken is the selected choice
+    if (overrideWrap) overrideWrap.style.display = (choice === 'aadToken') ? '' : 'none';
+
+    let msg = '';
+    let level = 'good';
+
+    if (!choice) {
+      msg = 'No token selected.';
+      level = 'warn';
+    } else {
+      const r = resolveTokenForChoice(choice);
+      if (!r.token) {
+        msg = 'No "' + choice + '" available — not in the postMessage' +
+              (choice === 'aadToken' ? ' and override is empty.' : '. Re-handshake first.');
+        level = 'warn';
+      } else {
+        const c = classifyPbiToken(r.token);
+        const audOk = c.aud && (
+          c.aud.indexOf('powerbi') !== -1 ||
+          c.aud === PBI_AUDIENCE ||
+          c.aud.indexOf('analysis.windows.net') !== -1
+        );
+        const tokenTypeLabel = (c.kind === 'aad') ? 'TokenType.Aad' : 'TokenType.Embed';
+        const audSuffix = audOk ? ' (Power BI ✓)' : ' (NOT Power BI — will 401)';
+        msg = 'Will send ' + choice + ' (' + r.source + ') as ' + tokenTypeLabel + '. ' +
+              'iss: ' + (c.iss || '?') + ' · aud: ' + (c.aud || '?') + audSuffix;
+        if (!audOk) level = 'warn';
+
+        if (choice === 'embedToken') {
+          const data = lastMessageData || {};
+          const ws = document.getElementById('embedWorkspaceId').value.trim();
+          const rid = document.getElementById('embedReportId').value.trim();
+          if (data.embedWorkspaceId && data.embedReportId &&
+              (ws !== data.embedWorkspaceId || rid !== data.embedReportId)) {
+            msg += ' — IDs differ from the host-provided ones (' + data.embedWorkspaceId + '/' +
+                   data.embedReportId + '); embedToken is bound to those, will likely 403.';
+            level = 'warn';
+          }
+        }
+      }
+    }
+
+    hint.textContent = msg;
+    hint.style.color = level === 'warn' ? 'var(--warn)' : 'var(--good)';
+  }
+
+  function openEmbedModal() {
+    const modal = document.getElementById('embedModal');
+    const data = lastMessageData || {};
+
+    // Pre-fill from message if the host provided IDs
+    if (data.embedWorkspaceId) {
+      document.getElementById('embedWorkspaceId').value = data.embedWorkspaceId;
+    }
+    if (data.embedReportId) {
+      document.getElementById('embedReportId').value = data.embedReportId;
+    }
+
+    refreshTokenToggleAvailability();
+
+    // Default selection: embedToken if present, else aadToken
+    const hasEmbedToken = typeof data.embedToken === 'string' && data.embedToken.length > 0;
+    const hasAadToken = typeof data.aadToken === 'string' && data.aadToken.length > 0;
+    const current = getSelectedTokenChoice();
+    if (!current || (current === 'embedToken' && !hasEmbedToken) || (current === 'aadToken' && !hasAadToken)) {
+      setTokenChoice(hasEmbedToken ? 'embedToken' : (hasAadToken ? 'aadToken' : 'embedToken'));
+    } else {
+      setTokenChoice(current);
+    }
+
+    modal.classList.add('open');
+    setTimeout(() => document.getElementById('embedWorkspaceId').focus(), 50);
+  }
+
+  function closeEmbedModal() {
+    document.getElementById('embedModal').classList.remove('open');
+  }
+
+  function getPbiClient() {
+    // powerbi.min.js exposes window.powerbi (pre-built service) and
+    // window['powerbi-client'] (with .models)
+    const ns = window['powerbi-client'];
+    if (!window.powerbi || !ns || !ns.models) return null;
+    return { service: window.powerbi, models: ns.models };
+  }
+
+  function clearEmbed() {
+    const container = document.getElementById('pbiContainer');
+    const pbi = getPbiClient();
+    if (pbi) try { pbi.service.reset(container); } catch (_) {}
+    container.style.display = 'none';
+    document.getElementById('btnClearEmbed').style.display = 'none';
+    log('info', 'Power BI embed cleared');
+  }
+
+  // Build a one-line summary of a token's claims for the log.
+  function tokenSummary(label, token) {
+    const c = classifyPbiToken(token);
+    if (c.kind === 'none' || c.kind === 'opaque') {
+      return label + ': ' + c.kind;
+    }
+    const p = c.decoded.payload;
+    const expRel = p.exp ? fmtRelative(p.exp) : '?';
+    const expState = p.exp ? (p.exp * 1000 < Date.now() ? 'EXPIRED' : 'valid') : '?';
+    const parts = [
+      'kind=' + c.kind,
+      'iss=' + (p.iss || '?'),
+      'aud=' + (p.aud || '?'),
+      'scp=' + (p.scp || p.scopes || '(none)'),
+      'roles=' + (p.roles ? (Array.isArray(p.roles) ? p.roles.join(',') : p.roles) : '(none)'),
+      'sub=' + (p.sub || '?'),
+      'exp=' + expState + ' (' + expRel + ')'
+    ];
+    return label + ' → ' + parts.join('  ');
+  }
+
+  function embedReport(workspaceId, reportId, tenantId) {
+    const pbi = getPbiClient();
+    if (!pbi) {
+      log('error', 'Power BI client library failed to load (CDN blocked?). Check the network.');
+      return;
+    }
+
+    const data = lastMessageData || {};
+    const hasEmbedToken = typeof data.embedToken === 'string' && data.embedToken.length > 0;
+    const hasAadToken = typeof data.aadToken === 'string' && data.aadToken.length > 0;
+    const idsMatchHost =
+      data.embedWorkspaceId === workspaceId &&
+      data.embedReportId === reportId;
+
+    const tokenChoice = getSelectedTokenChoice() || (hasEmbedToken ? 'embedToken' : 'aadToken');
+
+    log('info', 'Embed inputs: workspaceId=' + workspaceId + ' reportId=' + reportId +
+                ' tenantId=' + tenantId);
+    log('info', 'Host-provided IDs: embedWorkspaceId=' + (data.embedWorkspaceId || '(none)') +
+                ' embedReportId=' + (data.embedReportId || '(none)') +
+                ' idsMatchHost=' + idsMatchHost);
+    log('info', 'Token choice (from toggle): ' + tokenChoice);
+    if (hasEmbedToken) log('info', tokenSummary('embedToken', data.embedToken));
+    if (hasAadToken) log('info', tokenSummary('aadToken', data.aadToken));
+
+    // Honor the user's toggle choice. Each branch still classifies the
+    // chosen token's iss to pick the right SDK TokenType — some hosts put
+    // an AAD token in the embedToken field, etc.
+    let tokenType, accessToken, embedUrl, mode;
+    if (tokenChoice === 'embedToken') {
+      if (!hasEmbedToken) {
+        log('error', 'Toggle is set to embedToken but the postMessage has no embedToken field. ' +
+          'Switch the toggle to aadToken or re-handshake.');
+        return;
+      }
+      const c = classifyPbiToken(data.embedToken);
+      tokenType = (c.kind === 'aad') ? pbi.models.TokenType.Aad : pbi.models.TokenType.Embed;
+      accessToken = data.embedToken;
+      embedUrl = data.embedUrl ||
+        ('https://app.powerbi.com/reportEmbed' +
+         '?reportId=' + encodeURIComponent(reportId) +
+         '&groupId=' + encodeURIComponent(workspaceId));
+      mode = 'embedToken → ' +
+        (tokenType === pbi.models.TokenType.Embed ? 'TokenType.Embed' : 'TokenType.Aad') +
+        ' (iss=' + (c.iss || '?') + ')';
+      if (!idsMatchHost) {
+        log('warn', 'You picked embedToken but the IDs differ from host-provided (' +
+          data.embedWorkspaceId + '/' + data.embedReportId +
+          '). Embed tokens are bound to those exact IDs — expect 403/404.');
+      }
+    } else if (tokenChoice === 'aadToken') {
+      const resolved = resolveTokenForChoice('aadToken');
+      if (!resolved.token) {
+        log('error', 'Toggle is set to aadToken but no token is available — postMessage has no aadToken and override is empty.');
+        return;
+      }
+      log('info', 'aadToken source: ' + resolved.source);
+      const c = classifyPbiToken(resolved.token);
+      tokenType = (c.kind === 'embed') ? pbi.models.TokenType.Embed : pbi.models.TokenType.Aad;
+      accessToken = resolved.token;
+      embedUrl =
+        'https://app.powerbi.com/reportEmbed' +
+        '?reportId=' + encodeURIComponent(reportId) +
+        '&groupId=' + encodeURIComponent(workspaceId) +
+        '&ctid=' + encodeURIComponent(tenantId);
+      mode = 'aadToken → ' +
+        (tokenType === pbi.models.TokenType.Embed ? 'TokenType.Embed' : 'TokenType.Aad') +
+        ' (iss=' + (c.iss || '?') + ')';
+      // Pre-flight checks for the AAD path
+      const aud = String((c.decoded && c.decoded.payload && c.decoded.payload.aud) || '');
+      const audOk = aud.indexOf('powerbi') !== -1 ||
+                    aud === PBI_AUDIENCE ||
+                    aud.indexOf('analysis.windows.net') !== -1;
+      if (!audOk) {
+        log('error',
+          'AAD token audience is "' + aud + '" — NOT Power BI. ' +
+          'The host needs to acquire a token with scope ' +
+          'https://analysis.windows.net/powerbi/api/.default ' +
+          '(or specific scopes like Report.Read.All Dataset.Read.All). ' +
+          'The current token will be rejected by the Power BI iframe with 401.');
+      }
+      const scp = String((c.decoded && c.decoded.payload && c.decoded.payload.scp) || '');
+      if (audOk && scp && scp.indexOf('Report.Read') === -1 && scp.indexOf('.default') === -1) {
+        log('warn', 'AAD token has PBI audience but scopes "' + scp +
+          '" do not include Report.Read.All — embed may still 403.');
+      }
+      const expSec = c.decoded && c.decoded.payload && c.decoded.payload.exp;
+      if (expSec && expSec * 1000 < Date.now()) {
+        log('error', 'AAD token is EXPIRED (exp=' + new Date(expSec * 1000).toISOString() +
+          '). Re-handshake to get a fresh one.');
+      }
+    } else {
+      log('error', 'Cannot embed: unknown token choice "' + tokenChoice + '".');
+      return;
+    }
+
+    const container = document.getElementById('pbiContainer');
+    container.style.display = '';
+    document.getElementById('btnClearEmbed').style.display = '';
+    try { pbi.service.reset(container); } catch (_) {}
+
+    const config = {
+      type: 'report',
+      tokenType: tokenType,
+      accessToken: accessToken,
+      embedUrl: embedUrl,
+      id: reportId,
+      permissions: pbi.models.Permissions.Read,
+      settings: {
+        panes: {
+          filters: { expanded: false, visible: true },
+          pageNavigation: { visible: true }
+        },
+        background: pbi.models.BackgroundType.Transparent
+      }
+    };
+
+    log('send', 'Embedding Power BI report ' + reportId + ' (workspace ' + workspaceId + ') using ' + mode);
+    log('info', 'Embed URL: ' + embedUrl);
+    log('info', 'Embed config: tokenType=' +
+      (tokenType === pbi.models.TokenType.Embed ? 'Embed' : 'Aad') +
+      ' permissions=Read id=' + reportId);
+
+    // Console-log the actual JWT being sent to the SDK so it can be
+    // copied to jwt.ms / jwt.io for inspection. Grouped to avoid noise.
+    const tokenTypeName = (tokenType === pbi.models.TokenType.Embed) ? 'TokenType.Embed' : 'TokenType.Aad';
+    const decodedForConsole = decodeJwt(accessToken);
+    console.groupCollapsed(
+      '%c[PBI embed] Sending ' + tokenTypeName + ' — ' + mode,
+      'color:#58a6ff; font-weight:600'
+    );
+    console.log('JWT (raw):', accessToken);
+    if (decodedForConsole) {
+      console.log('JWT (header):', decodedForConsole.header);
+      console.log('JWT (payload):', decodedForConsole.payload);
+    }
+    console.log('embedUrl:', embedUrl);
+    console.log('reportId:', reportId, ' workspaceId:', workspaceId, ' tenantId:', tenantId);
+    console.log('Full embed config (token redacted):',
+      Object.assign({}, config, { accessToken: '<' + accessToken.length + ' chars>' }));
+    console.groupEnd();
+
+    const report = pbi.service.embed(container, config);
+
+    report.off('loaded');
+    report.off('rendered');
+    report.off('error');
+    report.off('warning');
+    report.on('loaded', () => log('info', 'Power BI: report loaded'));
+    report.on('rendered', () => log('info', 'Power BI: report rendered'));
+    report.on('warning', (e) => {
+      const detail = (e && e.detail) || e;
+      log('warn', 'Power BI warning: ' + (typeof detail === 'string' ? detail : JSON.stringify(detail)));
+    });
+    report.on('error', (e) => {
+      const detail = (e && e.detail) || e || {};
+      // Power BI error events expose: message, detailedMessage, errorCode,
+      // level, technicalDetails, errorInfo. Surface them all so we can
+      // actually diagnose 401/403/404 from the iframe.
+      const lines = [];
+      if (detail.errorCode) lines.push('errorCode: ' + detail.errorCode);
+      if (detail.message) lines.push('message: ' + detail.message);
+      if (detail.detailedMessage) lines.push('detailedMessage: ' + detail.detailedMessage);
+      if (detail.level !== undefined) lines.push('level: ' + detail.level);
+      if (detail.technicalDetails) {
+        const td = detail.technicalDetails;
+        const requestId = td.requestId || (td.responseJson && td.responseJson.requestId);
+        if (requestId) lines.push('requestId: ' + requestId);
+        if (td.errorInfo) lines.push('errorInfo: ' + JSON.stringify(td.errorInfo));
+        lines.push('technicalDetails: ' + JSON.stringify(td));
+      }
+      if (detail.errorInfo) lines.push('errorInfo: ' + JSON.stringify(detail.errorInfo));
+      if (lines.length === 0) lines.push(JSON.stringify(detail));
+
+      log('error', 'Power BI error:');
+      lines.forEach(l => log('error', '  ' + l));
+
+      // Friendly hints for the most common failures
+      const code = String(detail.errorCode || '').toLowerCase();
+      const msg  = String(detail.message || detail.detailedMessage || '').toLowerCase();
+      if (code === 'tokenexpired' || msg.indexOf('token has expired') !== -1) {
+        log('warn', 'Hint: the token is expired. Click "Re-send handshake" so the host posts a fresh one.');
+      } else if (code === 'powerbinotauthorizedexception' || msg.indexOf('401') !== -1) {
+        log('warn', 'Hint: 401 — the token audience or signature is wrong. ' +
+          'For TokenType.Aad you need an AAD token with aud=https://analysis.windows.net/powerbi/api ' +
+          'and scope Report.Read.All (or .default).');
+      } else if (msg.indexOf('403') !== -1 || code === 'powerbiforbiddenexception') {
+        log('warn', 'Hint: 403 — token is valid but the user/SP lacks access. ' +
+          'Add the principal to the workspace (at least Viewer) or check capacity assignment.');
+      } else if (code === 'loadreportfailed' && msg.indexOf('not found') !== -1) {
+        log('warn', 'Hint: report not found in that workspace — check the IDs.');
+      }
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // DAX query (executeQueries REST API)
+  // ------------------------------------------------------------------
+  const DEFAULT_DAX = [
+    'EVALUATE',
+    'VAR FromDate = 1990',
+    'VAR ToDate = 2020',
+    'VAR CurrentTimestamp = NOW()',
+    'RETURN',
+    '    SUMMARIZE(',
+    '        ADDCOLUMNS(',
+    "            'countries data',",
+    '            "Continent Name", IF(',
+    "                ISBLANK('countries data'[Continent]),",
+    '                "Other",',
+    "                'countries data'[Continent]",
+    '            ),',
+    '            "Query Time", CurrentTimestamp',
+    '        ),',
+    '        [Continent Name],',
+    '        "Total CO2", CALCULATE(',
+    "            SUM('countries data'[co2]),",
+    "            'year'[Year] >= FromDate && 'year'[Year] <= ToDate",
+    '        ),',
+    '        "Query Time", CurrentTimestamp',
+    '    )'
+  ].join('\n');
+  document.getElementById('daxQuery').value = DEFAULT_DAX;
+
+  let lastDaxResult = null;
+
+  // Pick the best token in lastMessageData for calling the Power BI REST API.
+  // Prefers a real AAD token with PBI audience, then any embedToken, then
+  // anything else (which will probably 401 — the user will see why).
+  function pickRestToken() {
+    const data = lastMessageData || {};
+    const candidates = [];
+    if (data.aadToken) candidates.push({ name: 'aadToken', token: data.aadToken });
+    if (data.embedToken) candidates.push({ name: 'embedToken', token: data.embedToken });
+    if (data.token) candidates.push({ name: 'token', token: data.token });
+
+    // First pass: prefer a real AAD token with PBI audience
+    for (const c of candidates) {
+      const cls = classifyPbiToken(c.token);
+      const audOk = cls.aud && (
+        cls.aud.indexOf('powerbi') !== -1 ||
+        cls.aud === PBI_AUDIENCE ||
+        cls.aud.indexOf('analysis.windows.net') !== -1
+      );
+      if (cls.kind === 'aad' && audOk) return { ...c, why: 'AAD token with PBI audience' };
+    }
+    // Second pass: any PBI-audience token
+    for (const c of candidates) {
+      const cls = classifyPbiToken(c.token);
+      const audOk = cls.aud && (
+        cls.aud.indexOf('powerbi') !== -1 ||
+        cls.aud === PBI_AUDIENCE ||
+        cls.aud.indexOf('analysis.windows.net') !== -1
+      );
+      if (audOk) return { ...c, why: cls.kind + ' token, PBI audience' };
+    }
+    // Third pass: any embed token (signed by PBI service)
+    for (const c of candidates) {
+      const cls = classifyPbiToken(c.token);
+      if (cls.kind === 'embed') return { ...c, why: 'embed token (PBI service issued)' };
+    }
+    // Last resort
+    return candidates[0] ? { ...candidates[0], why: 'no PBI-audience token found, trying ' + candidates[0].name } : null;
+  }
+
+  function setDaxStatus(state, msg) {
+    const el = document.getElementById('daxStatus');
+    el.className = 'dax-status' + (state ? ' ' + state : '');
+    el.textContent = msg || '';
+  }
+
+  async function resolveDatasetId(workspaceId, reportId, token) {
+    const url = 'https://api.powerbi.com/v1.0/myorg/groups/' +
+      encodeURIComponent(workspaceId) + '/reports/' + encodeURIComponent(reportId);
+    const res = await fetch(url, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      const err = new Error('GET /reports/' + reportId + ' failed: HTTP ' + res.status + ' — ' + text);
+      err.status = res.status;
+      err.responseText = text;
+      throw err;
+    }
+    const r = JSON.parse(text);
+    if (!r.datasetId) throw new Error('Report response missing datasetId');
+    return r.datasetId;
+  }
+
+  async function ensureDatasetId(workspaceId, reportId) {
+    let datasetId = document.getElementById('daxDatasetId').value.trim();
+    if (datasetId) return datasetId;
+    const tok = pickRestToken();
+    if (!tok) throw new Error('No token available to resolve dataset ID');
+    setDaxStatus('', 'Resolving dataset ID from report ' + reportId + '…');
+    datasetId = await resolveDatasetId(workspaceId, reportId, tok.token);
+    document.getElementById('daxDatasetId').value = datasetId;
+    log('info', 'Resolved dataset ID for report ' + reportId + ': ' + datasetId);
+    return datasetId;
+  }
+
+  async function runDaxQuery() {
+    const workspaceId = document.getElementById('daxWorkspaceId').value.trim();
+    const reportId = document.getElementById('daxReportId').value.trim();
+    const query = document.getElementById('daxQuery').value;
+    const resultEl = document.getElementById('daxResult');
+    const copyBtn = document.getElementById('btnCopyDaxResult');
+
+    if (!workspaceId || !reportId || !query.trim()) {
+      setDaxStatus('err', 'Workspace ID, report ID, and DAX query are required.');
+      return;
+    }
+
+    const tok = pickRestToken();
+    if (!tok) {
+      setDaxStatus('err', 'No token in postMessage. Re-handshake first.');
+      return;
+    }
+
+    resultEl.style.display = 'none';
+    resultEl.classList.remove('err');
+    copyBtn.disabled = true;
+    setDaxStatus('', 'Using ' + tok.name + ' (' + tok.why + ')…');
+
+    try {
+      const datasetId = await ensureDatasetId(workspaceId, reportId);
+
+      const url = 'https://api.powerbi.com/v1.0/myorg/groups/' +
+        encodeURIComponent(workspaceId) + '/datasets/' +
+        encodeURIComponent(datasetId) + '/executeQueries';
+      const body = {
+        queries: [{ query: query }],
+        serializerSettings: { includeNulls: true }
+      };
+
+      log('send', 'POST executeQueries on dataset ' + datasetId);
+      const t0 = performance.now();
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + tok.token,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      const elapsed = Math.round(performance.now() - t0);
+      const text = await res.text();
+      let json;
+      try { json = JSON.parse(text); } catch (_) { json = null; }
+
+      resultEl.style.display = '';
+      lastDaxResult = json != null ? JSON.stringify(json, null, 2) : text;
+      resultEl.textContent = lastDaxResult;
+      copyBtn.disabled = false;
+
+      if (!res.ok) {
+        resultEl.classList.add('err');
+        const reason = json && json.error
+          ? (json.error.code || '') + ' — ' + (json.error.message || '')
+          : 'HTTP ' + res.status;
+        setDaxStatus('err', 'executeQueries failed: ' + reason + ' (' + elapsed + 'ms)');
+        log('error', 'executeQueries HTTP ' + res.status + ': ' + reason);
+        return;
+      }
+
+      const rows = (json && json.results && json.results[0] && json.results[0].tables &&
+        json.results[0].tables[0] && json.results[0].tables[0].rows) || [];
+      setDaxStatus('ok', 'Success: ' + rows.length + ' row(s) in ' + elapsed + 'ms (using ' + tok.name + ')');
+      log('info', 'executeQueries OK: ' + rows.length + ' rows, ' + text.length + ' bytes, ' + elapsed + 'ms');
+    } catch (e) {
+      resultEl.style.display = '';
+      resultEl.classList.add('err');
+      resultEl.textContent = e.message + (e.responseText ? '\n\n' + e.responseText : '');
+      setDaxStatus('err', 'Error: ' + e.message);
+      log('error', 'DAX query error: ' + e.message);
+    }
+  }
+
+  // DAX panel wiring
+  document.getElementById('btnRunDax').addEventListener('click', runDaxQuery);
+  document.getElementById('btnResolveDataset').addEventListener('click', async () => {
+    const workspaceId = document.getElementById('daxWorkspaceId').value.trim();
+    const reportId = document.getElementById('daxReportId').value.trim();
+    document.getElementById('daxDatasetId').value = '';
+    try {
+      const id = await ensureDatasetId(workspaceId, reportId);
+      setDaxStatus('ok', 'Dataset ID: ' + id);
+    } catch (e) {
+      setDaxStatus('err', 'Resolve failed: ' + e.message);
+    }
+  });
+  document.getElementById('btnClearDax').addEventListener('click', () => {
+    document.getElementById('daxResult').style.display = 'none';
+    document.getElementById('daxResult').textContent = '';
+    document.getElementById('btnCopyDaxResult').disabled = true;
+    setDaxStatus('', '');
+  });
+  document.getElementById('btnCopyDaxResult').addEventListener('click', async () => {
+    if (!lastDaxResult) return;
+    try {
+      await navigator.clipboard.writeText(lastDaxResult);
+      log('info', 'DAX result copied to clipboard');
+    } catch (e) {
+      log('error', 'Clipboard write failed: ' + e.message);
+    }
+  });
+
+  // Pre-fill workspace/report from incoming postMessage when it arrives.
+  // We can't do this in the listener directly without refactoring; do it on
+  // a short interval check the first time data shows up.
+  const daxPrefillTimer = setInterval(() => {
+    if (!lastMessageData) return;
+    if (lastMessageData.embedWorkspaceId) {
+      document.getElementById('daxWorkspaceId').value = lastMessageData.embedWorkspaceId;
+    }
+    if (lastMessageData.embedReportId) {
+      document.getElementById('daxReportId').value = lastMessageData.embedReportId;
+    }
+    clearInterval(daxPrefillTimer);
+  }, 500);
+
+  // Modal wiring
+  document.getElementById('btnOpenEmbed').addEventListener('click', openEmbedModal);
+  document.getElementById('btnClearEmbed').addEventListener('click', clearEmbed);
+  document.getElementById('embedModal').addEventListener('click', (e) => {
+    if (e.target.dataset.close !== undefined) closeEmbedModal();
+  });
+
+  // Token toggle: click an option to select it, then refresh the hint.
+  document.getElementById('embedTokenToggle').addEventListener('click', (e) => {
+    const opt = e.target.closest('.token-toggle-option');
+    if (!opt || opt.classList.contains('disabled')) return;
+    setTokenChoice(opt.dataset.choice);
+  });
+
+  // Live-update the hint when the user edits the workspace/report IDs
+  // (so the "IDs differ from host" warning kicks in immediately).
+  ['embedWorkspaceId', 'embedReportId', 'aadTokenOverride'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateEmbedHint);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('embedModal').classList.contains('open')) {
+      closeEmbedModal();
+    }
+  });
+  document.getElementById('embedForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const workspaceId = document.getElementById('embedWorkspaceId').value.trim();
+    const reportId = document.getElementById('embedReportId').value.trim();
+    const tenantId = document.getElementById('embedTenantId').value.trim();
+    if (!workspaceId || !reportId || !tenantId) return;
+    closeEmbedModal();
+    embedReport(workspaceId, reportId, tenantId);
+  });
+
+  // Buttons
+  document.getElementById('btnHandshake').addEventListener('click', sendHandshake);
+  document.getElementById('btnDecodeMessage').addEventListener('click', decodeMessage);
+  document.getElementById('btnClearLog').addEventListener('click', () => {
+    logEl.innerHTML = '';
+  });
+  document.getElementById('btnCopyToken').addEventListener('click', async () => {
+    if (!receivedToken) return;
+    try {
+      await navigator.clipboard.writeText(receivedToken);
+      log('info', 'Token copied to clipboard');
+    } catch (e) {
+      log('error', 'Clipboard write failed: ' + e.message);
+    }
+  });
+
+  // Send the handshake on load. If the parent is already listening, we
+  // get a response immediately; if not, the user can click the button to
+  // resend. Some parents wait for the iframe's load event before attaching
+  // their message listener, so we also schedule a couple of retries.
+  function kick() {
+    sendHandshake();
+  }
+  if (document.readyState === 'complete') kick();
+  else window.addEventListener('load', kick);
+  setTimeout(sendHandshake, 250);
+  setTimeout(() => {
+    if (!receivedToken) {
+      setTokenStatus('waiting', 'Awaiting token…');
+      log('warn', 'No token received within 2s. The Tool may have "Include access token" disabled, ' +
+                  'or the parent listener attached after our initial handshake. Click "Re-send handshake".');
+    }
+  }, 2000);
+
+})();
+</script>
+</body>
+</html>

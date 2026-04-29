@@ -1,0 +1,71 @@
+- main [ref=e3]:
+  - heading "Hello, Developer" [level=1] [ref=e4]
+  - paragraph [ref=e5]: This app received its user and tenant context from DataCentral.
+  - generic [ref=e6]:
+    - heading "User context" [level=2] [ref=e7]
+    - generic [ref=e8]:
+      - term [ref=e9]: User ID
+      - definition [ref=e10]: dev-user
+      - term [ref=e11]: Username
+      - definition [ref=e12]: developer
+      - term [ref=e13]: Tenant
+      - definition [ref=e14]: Development (dev-tenant)
+      - term [ref=e15]: Roles
+      - definition [ref=e16]: Admin
+      - term [ref=e17]: Frontend verified
+      - definition [ref=e18]: "false"
+  - generic [ref=e19]:
+    - heading "Backend verification" [level=2] [ref=e20]
+    - generic [ref=e21]: "null"
+  - generic [ref=e22]:
+    - generic [ref=e23]:
+      - heading "Embed diagnostics" [level=2] [ref=e24]
+      - generic [ref=e25]: Awaiting token
+    - generic [ref=e26]:
+      - generic [ref=e27]:
+        - heading "Query parameters" [level=3] [ref=e28]
+        - generic [ref=e29]:
+          - generic [ref=e30]:
+            - term [ref=e31]: dcdata
+            - definition [ref=e32]: (not provided)
+          - generic [ref=e33]:
+            - term [ref=e34]: dcsig
+            - definition [ref=e35]: (not provided)
+        - group [ref=e36]:
+          - generic "Full URL" [ref=e37]
+      - generic [ref=e38]:
+        - heading "Embed context" [level=3] [ref=e39]
+        - generic [ref=e40]:
+          - generic [ref=e41]:
+            - term [ref=e42]: In iframe?
+            - definition [ref=e43]: no (open in DataCentral)
+          - generic [ref=e44]:
+            - term [ref=e45]: Parent origin
+            - definition [ref=e46]: (unknown)
+          - generic [ref=e47]:
+            - term [ref=e48]: My origin
+            - definition [ref=e49]: http://localhost:5173
+          - generic [ref=e50]:
+            - term [ref=e51]: Referrer
+            - definition [ref=e52]: (none)
+      - generic [ref=e53]:
+        - heading "Access token (via postMessage)" [level=3] [ref=e54]
+        - generic [ref=e56]:
+          - term [ref=e57]: Status
+          - definition [ref=e58]:
+            - generic [ref=e59]: "No token received yet. Sent { type: \"AppReady \" } to parent on load."
+        - generic [ref=e60]:
+          - button "Re-send handshake" [ref=e61] [cursor=pointer]
+          - button "Copy token" [disabled] [ref=e62]
+      - generic [ref=e63]:
+        - heading "Event log" [level=3] [ref=e64]
+        - generic [ref=e65]:
+          - generic [ref=e66]:
+            - text: 19:18:09.042
+            - generic [ref=e67]: "[INFO]"
+            - text: "Query parameters: (none)"
+          - generic [ref=e68]:
+            - text: 19:18:09.047
+            - generic [ref=e69]: "[WARN]"
+            - text: No parent window — cannot send handshake. Open this page inside a DataCentral Tool.
+        - button "Clear log" [ref=e71] [cursor=pointer]

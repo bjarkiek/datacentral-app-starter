@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "./api/client";
 import { authReady, WebhookAuth } from "./auth/webhookAuth";
+import EmbedDiagnostics from "./embed/EmbedDiagnostics";
 import type { DataCentralUserContext } from "./types";
 
 function isLocalhost(): boolean {
@@ -60,6 +61,8 @@ export default function App() {
         <h2>Backend verification</h2>
         <pre>{JSON.stringify(backendContext, null, 2)}</pre>
       </section>
+
+      <EmbedDiagnostics />
     </main>
   );
 }

@@ -1,0 +1,65 @@
+{
+  "aud": "https://graph.microsoft.com",
+  "iss": "https://sts.windows.net/60ae6057-4b2f-4117-b377-8cd6af77fe07/",
+  "iat": 1777208617,
+  "nbf": 1777208617,
+  "exp": 1777213547,
+  "acct": 0,
+  "acr": "1",
+  "acrs": [
+    "p1"
+  ],
+  "aio": "AaQAW/8bAAAA1quIEJTpmtZmAq6Vo6g+cWo/3JgRN0H9r/cFvbadS5XYBY3yrxzDwovU56O/luSQSEeAu3s+jFt+Ak4wnyqSPZpkHCSEkaGnvnTyUfzzeBzQmD+BI4uUluJYHl3pQ/TkUMZaT6mrhiyxs16kN2qLpQ64+suiRzfUTWeXBNzxRjmiFU5npRpHUQSkYBKKTNBua+vKmatGrVc4XLd3ELW4qQ==",
+  "amr": [
+    "rsa",
+    "mfa"
+  ],
+  "app_displayname": "DataCentral Authentication Only",
+  "appid": "eaaf78dc-412b-4fa4-ab5c-2b3ac8c402f9",
+  "appidacr": "0",
+  "deviceid": "b03a539d-e96a-403b-a8ed-f6a960e67613",
+  "family_name": "Kristjánsson",
+  "given_name": "Bjarki",
+  "idtyp": "user",
+  "ipaddr": "85.220.10.192",
+  "name": "Bjarki Kristjánsson",
+  "oid": "3047e71a-2d01-493c-aa7e-1098d6060a3a",
+  "platf": "3",
+  "puid": "1003200260FA92B1",
+  "rh": "1.AU4AV2CuYC9LF0Gzd4zWr3f-BwMAAAAAAAAAwAAAAAAAAACvAdtOAA.",
+  "scp": "openid profile User.Read email",
+  "sid": "0040ba6a-6bac-3491-a105-6aa48c352fd8",
+  "signin_state": [
+    "dvc_mngd",
+    "dvc_cmp",
+    "kmsi"
+  ],
+  "sub": "C6AszOJtSdsuNfEujqVdXwREDmvzrBC1GNsos4IImZM",
+  "tenant_region_scope": "EU",
+  "tid": "60ae6057-4b2f-4117-b377-8cd6af77fe07",
+  "unique_name": "bjarki@datacentral.ai",
+  "upn": "bjarki@datacentral.ai",
+  "uti": "GsAf1GkWT0ygfEuiF-RwAA",
+  "ver": "1.0",
+  "wids": [
+    "11648597-926c-4cf3-9c36-bcebb0ba8dcc",
+    "62e90394-69f5-4237-9190-012177145e10",
+    "4a5d8f65-41da-4de4-8968-e035b65339cf",
+    "b0f54661-2d74-4c50-afa3-1ec803f12efe",
+    "88d8e3e3-8f55-4a1e-953a-9b9898b8876b",
+    "194ae4cb-b126-40b2-bd5b-6091b380977d",
+    "b79fbf4d-3ef9-4689-8143-76b194e85509"
+  ],
+  "xms_acd": 1726742395,
+  "xms_act_fct": "9 3",
+  "xms_ftd": "cjp28VRRI2LVlJug1Cq2Kgr6M_bVxIp5bZ-nJdsNhp4BZXVyb3Blbm9ydGgtZHNtcw",
+  "xms_idrel": "1 26",
+  "xms_pftexp": 1777299947,
+  "xms_st": {
+    "sub": "KBos3kYTaxWtTZN4rLUgal2bNS5bSV_ELiaAMVCtb_Q"
+  },
+  "xms_sub_fct": "8 3",
+  "xms_tcdt": 1672544251,
+  "xms_tdbr": "EU",
+  "xms_tnt_fct": "3 16"
+}
